@@ -7,6 +7,7 @@ import '@fontsource/barlow-condensed/500.css';
 import '@fontsource/barlow-condensed/600.css';
 import '@fontsource/barlow-condensed/800.css';
 import './style.css';
+import { serverHttpUrl, serverWebSocketUrl } from './server-url.ts';
 import { City } from './world.ts';
 import {
   disposeObject,
@@ -246,7 +247,7 @@ ui.onSettings();
 
 async function refreshStatus(): Promise<void> {
   try {
-    const response = await fetch('/api/status');
+    const response = await fetch(serverHttpUrl('/api/status'));
     if (!response.ok) throw new Error();
     const status = await response.json();
     ui.serverName = status.name;
@@ -271,7 +272,7 @@ ui.onAccount = async (action, username, password) => {
   try {
     const guestToken =
       action === 'register' ? (localStorage.getItem('openrp-token') ?? undefined) : undefined;
-    const response = await fetch('/api/account', {
+    const response = await fetch(serverHttpUrl('/api/account'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action, username, password, token: guestToken }),
@@ -330,7 +331,7 @@ ui.onConnect = (name, password, account = false) => {
   mouseDown = false;
   keys.clear();
   const ws = (socket = new WebSocket(
-    `${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}/ws`,
+    serverWebSocketUrl('/ws'),
   ));
   let rejection = '';
   ws.addEventListener('open', () =>
