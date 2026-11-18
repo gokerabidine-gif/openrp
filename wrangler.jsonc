@@ -23,6 +23,6 @@
     "SALARY_SECONDS": "60",
     "JAIL_SECONDS": "60",
     "LOG_RETENTION_DAYS": "30",
-    "ALLOWED_ORIGINS": "https://openrp.dev,https://www.openrp.dev",
+    "ALLOWED_ORIGINS": "https://openrp.dev,https://www.openrp.dev,https://localhost",
   },
 }
