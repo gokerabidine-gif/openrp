@@ -295,7 +295,7 @@ ui.onSignOut = async () => {
   ui.setAccountBusy(true);
   try {
     if (ui.username) {
-      const response = await fetch('/api/account', {
+      const response = await fetch(serverHttpUrl('/api/account'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'logout', token: localStorage.getItem('openrp-account-token') }),
