@@ -2145,3 +2145,124 @@ small {
     font-size: 0.8rem;
   }
 }
+
+
+/* Mobile gamepad: shown only while a touch player is actively in the streets. */
+#viewport canvas,
+#mobile-controls {
+  touch-action: none;
+}
+#mobile-controls {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 12;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+#mobile-controls.active {
+  display: block;
+}
+.mobile-left,
+.mobile-right {
+  position: absolute;
+  bottom: max(22px, env(safe-area-inset-bottom));
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  pointer-events: none;
+}
+.mobile-left {
+  left: max(18px, env(safe-area-inset-left));
+  flex-direction: column;
+  align-items: flex-start;
+}
+.mobile-right {
+  right: max(18px, env(safe-area-inset-right));
+  display: grid;
+  grid-template-columns: repeat(2, 64px);
+  align-items: end;
+}
+.mobile-stick {
+  --stick-x: 0px;
+  --stick-y: 0px;
+  width: 142px;
+  height: 142px;
+  border: 1px solid #e5d5b66b;
+  border-radius: 50%;
+  background: #111b18a8;
+  box-shadow: inset 0 0 24px #0005, 0 3px 18px #0005;
+  pointer-events: auto;
+  position: relative;
+}
+.mobile-stick::before {
+  content: '';
+  position: absolute;
+  inset: 25%;
+  border: 1px solid #ffffff28;
+  border-radius: 50%;
+}
+.mobile-stick i {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: #dfb477d9;
+  border: 2px solid #f2d5a5;
+  box-shadow: 0 2px 10px #0008;
+  transform: translate(calc(-50% + var(--stick-x)), calc(-50% + var(--stick-y)));
+}
+.mobile-button {
+  min-width: 64px;
+  min-height: 58px;
+  padding: 8px 5px;
+  border: 1px solid #e7d3ad80;
+  border-radius: 50%;
+  background: #17231fdb;
+  color: #f2e5c8;
+  font: 700 0.72rem 'Barlow', sans-serif;
+  letter-spacing: 0.04em;
+  box-shadow: 0 3px 14px #0007;
+  pointer-events: auto;
+  touch-action: none;
+}
+.mobile-button.pressed,
+.mobile-button:active {
+  background: #dfb477;
+  color: #26352f;
+  transform: scale(0.96);
+}
+.mobile-sprint {
+  min-height: 42px;
+  min-width: 78px;
+  border-radius: 22px;
+  margin-left: 28px;
+}
+.mobile-fire {
+  width: 72px;
+  height: 72px;
+  background: #9b503dcf;
+  border-color: #f0a28b;
+}
+.mobile-use {
+  width: 58px;
+  height: 58px;
+}
+@media (max-width: 520px) {
+  .mobile-stick { width: 124px; height: 124px; }
+  .mobile-right { grid-template-columns: repeat(2, 58px); gap: 9px; }
+  .mobile-button { min-width: 58px; min-height: 52px; font-size: 0.66rem; }
+  .mobile-fire { width: 66px; height: 66px; }
+  .mobile-sprint { min-width: 72px; min-height: 38px; }
+}
+@media (orientation: landscape) and (max-height: 520px) {
+  .mobile-left, .mobile-right { bottom: max(10px, env(safe-area-inset-bottom)); }
+  .mobile-stick { width: 112px; height: 112px; }
+  .mobile-stick i { width: 44px; height: 44px; }
+  .mobile-right { grid-template-columns: repeat(2, 54px); gap: 6px; }
+  .mobile-button { min-width: 54px; min-height: 46px; }
+  .mobile-fire { width: 60px; height: 60px; }
+}
