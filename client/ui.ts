@@ -95,11 +95,17 @@ export class UI {
         voiceVolume: 0.8,
         sensitivity: 1,
         fov: 80,
-        quality: 'high',
+        quality: matchMedia('(pointer: coarse)').matches ? 'low' : 'high',
         ...JSON.parse(localStorage.getItem('openrp-settings') ?? '{}'),
       };
     } catch {
-      this.settings = { volume: 0.45, voiceVolume: 0.8, sensitivity: 1, fov: 80, quality: 'high' };
+      this.settings = {
+        volume: 0.45,
+        voiceVolume: 0.8,
+        sensitivity: 1,
+        fov: 80,
+        quality: matchMedia('(pointer: coarse)').matches ? 'low' : 'high',
+      };
     }
     this.root = document.getElementById('app')!;
     this.root.innerHTML = `
