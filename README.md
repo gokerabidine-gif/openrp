@@ -27,6 +27,10 @@ To self-host on your own Cloudflare account, configure your domains and origins 
 
 To test two identities yourself, use two different browsers or a private window. Guest and account sessions keep separate browser credentials. Signing into an account on another browser moves that character to the new session.
 
+## Mobile touch controls
+
+The browser client detects touch-first devices and displays an on-screen movement stick, camera drag, and action buttons for sprinting, jumping, crouching, interacting, firing and reloading. The web app manifest requests a fullscreen landscape presentation when installed. Multiplayer still connects to the same OpenRP server; this branch does not bundle a standalone server or a native Android APK.
+
 ## What works
 
 | System      | Implemented behavior                                                                                                                                                                  |
