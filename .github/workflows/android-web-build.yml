@@ -1,4 +1,4 @@
-name: Android web payload
+name: Android APK
 
 on:
   push:
@@ -14,7 +14,7 @@ permissions:
   contents: read
 
 jobs:
-  build-android-web:
+  build-android:
     runs-on: ubuntu-latest
     steps:
       - name: Check out source
@@ -24,14 +24,30 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - name: Install dependencies
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+      - name: Install web dependencies
         run: npm ci
-      - name: Build Android web payload
+      - name: Install Capacitor tooling
+        run: npm install --no-save @capacitor/cli@^7 @capacitor/core@^7 @capacitor/android@^7
+      - name: Build Android web assets
         run: npm run build:android
-      - name: Upload web payload
+      - name: Generate Android project
+        run: npx cap add android
+      - name: Sync web assets
+        run: npx cap sync android
+      - name: Assemble debug APK
+        working-directory: android
+        run: ./gradlew assembleDebug
+      - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: openrp-android-web-payload
-          path: dist/
+          name: openrp-android-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 14
