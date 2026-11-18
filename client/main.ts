@@ -708,6 +708,7 @@ if (touchMode) {
   renderer.domElement.addEventListener('pointerdown', (event) => {
     if (!ui.playing || ui.menu || ui.chatOpen || event.pointerType !== 'touch') return;
     lookPointerId = event.pointerId;
+    renderer.domElement.setPointerCapture(event.pointerId);
     lookLastX = event.clientX;
     lookLastY = event.clientY;
   });
@@ -721,7 +722,11 @@ if (touchMode) {
     pitch = THREE.MathUtils.clamp(pitch - dy * 0.006 * ui.settings.sensitivity, -1.48, 1.48);
   });
   const stopLook = (event: PointerEvent) => {
-    if (event.pointerId === lookPointerId) lookPointerId = undefined;
+    if (event.pointerId === lookPointerId) {
+      if (renderer.domElement.hasPointerCapture(event.pointerId))
+        renderer.domElement.releasePointerCapture(event.pointerId);
+      lookPointerId = undefined;
+    }
   };
   renderer.domElement.addEventListener('pointerup', stopLook);
   renderer.domElement.addEventListener('pointercancel', stopLook);
