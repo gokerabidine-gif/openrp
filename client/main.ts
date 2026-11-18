@@ -73,6 +73,85 @@ const models = new Map<WeaponId, THREE.Group>();
 const entityVisuals = new Map<string, THREE.Group>();
 const avatars = new Map<string, Avatar>();
 const keys = new Set<string>();
+const touchMode = navigator.maxTouchPoints > 0 || matchMedia('(pointer: coarse)').matches;
+let moveTouchX = 0, moveTouchY = 0, lookPointerId: number | undefined;
+let lookLastX = 0, lookLastY = 0;
+const mobileControls = document.createElement('div');
+mobileControls.id = 'mobile-controls';
+mobileControls.innerHTML = `
+  <div class="mobile-left">
+    <div id="mobile-stick" class="mobile-stick" aria-label="Movement joystick"><i></i></div>
+    <button type="button" class="mobile-button mobile-sprint" data-mobile-key="ShiftLeft">RUN</button>
+  </div>
+  <div class="mobile-right">
+    <button type="button" class="mobile-button mobile-use" data-mobile-action="interact">USE</button>
+    <button type="button" class="mobile-button mobile-fire" data-mobile-action="fire">FIRE</button>
+    <button type="button" class="mobile-button" data-mobile-key="Space">JUMP</button>
+    <button type="button" class="mobile-button" data-mobile-action="reload">RELOAD</button>
+  </div>`;
+ui.root.append(mobileControls);
+const mobileStick = mobileControls.querySelector<HTMLElement>('#mobile-stick')!;
+function updateMobileStick(event: PointerEvent): void {
+  const rect = mobileStick.getBoundingClientRect();
+  const radius = Math.min(rect.width, rect.height) * 0.34;
+  const dx = event.clientX - (rect.left + rect.width / 2);
+  const dy = event.clientY - (rect.top + rect.height / 2);
+  const length = Math.hypot(dx, dy);
+  const scale = length > radius ? radius / length : 1;
+  moveTouchX = Math.max(-1, Math.min(1, (dx * scale) / radius));
+  moveTouchY = Math.max(-1, Math.min(1, (dy * scale) / radius));
+  mobileStick.style.setProperty('--stick-x', `${dx * scale}px`);
+  mobileStick.style.setProperty('--stick-y', `${dy * scale}px`);
+}
+mobileStick.addEventListener('pointerdown', (event) => {
+  event.preventDefault();
+  mobileStick.setPointerCapture(event.pointerId);
+  updateMobileStick(event);
+});
+mobileStick.addEventListener('pointermove', (event) => {
+  if (mobileStick.hasPointerCapture(event.pointerId)) updateMobileStick(event);
+});
+const resetMobileStick = (event: PointerEvent) => {
+  if (mobileStick.hasPointerCapture(event.pointerId)) mobileStick.releasePointerCapture(event.pointerId);
+  moveTouchX = moveTouchY = 0;
+  mobileStick.style.setProperty('--stick-x', '0px');
+  mobileStick.style.setProperty('--stick-y', '0px');
+};
+mobileStick.addEventListener('pointerup', resetMobileStick);
+mobileStick.addEventListener('pointercancel', resetMobileStick);
+mobileControls.querySelectorAll<HTMLButtonElement>('[data-mobile-key], [data-mobile-action]').forEach((button) => {
+  const press = (event: PointerEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    button.setPointerCapture(event.pointerId);
+    const key = button.dataset.mobileKey;
+    const command = button.dataset.mobileAction;
+    if (key) keys.add(key);
+    if (command === 'fire' && me && !ui.menu && !ui.chatOpen) {
+      mouseDown = true;
+      nextFire = performance.now() + WEAPONS[me.weapon].delay;
+      action('primary');
+    } else if (command === 'interact' && me && !ui.menu && !ui.chatOpen) {
+      const target = aim();
+      if (target) action('interact', target.id);
+    } else if (command === 'reload' && me && !ui.menu && !ui.chatOpen) action(me.holding ? 'rotate' : 'reload');
+    button.classList.add('pressed');
+  };
+  const release = (event: PointerEvent) => {
+    if (button.hasPointerCapture(event.pointerId)) button.releasePointerCapture(event.pointerId);
+    const key = button.dataset.mobileKey;
+    if (key) keys.delete(key);
+    if (button.dataset.mobileAction === 'fire') {
+      mouseDown = false;
+      if (me?.weapon === 'physgun') action('release');
+    }
+    button.classList.remove('pressed');
+  };
+  button.addEventListener('pointerdown', press);
+  button.addEventListener('pointerup', release);
+  button.addEventListener('pointercancel', release);
+});
+
 let socket: WebSocket | undefined,
   myId = '',
   state: Snapshot | undefined,
@@ -111,7 +190,7 @@ beam.visible = false;
 scene.add(beam);
 const shotLines: { object: THREE.Line; until: number }[] = [];
 const locked = () => document.pointerLockElement === renderer.domElement;
-const controlsActive = () => locked() || fallbackActive;
+const controlsActive = () => locked() || fallbackActive || (touchMode && ui.playing);
 const serverNow = () => Date.now() + clockOffset;
 function send(message: ClientMessage): void {
   if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify(message));
@@ -120,7 +199,7 @@ function action(name: string, target?: string, value?: string | number | boolean
   send({ type: 'action', action: name, target, value });
 }
 function lock(): void {
-  if (!ui.playing || ui.menu || ui.chatOpen) return;
+  if (touchMode || !ui.playing || ui.menu || ui.chatOpen) return;
   const fallback = () => {
     if (!ui.menu && !ui.chatOpen) {
       fallbackActive = true;
@@ -138,6 +217,8 @@ function lock(): void {
 function releaseControls(): void {
   voice.setTalking(false);
   keys.clear();
+  moveTouchX = moveTouchY = 0;
+  lookPointerId = undefined;
   mouseDown = false;
   fallbackActive = fallbackDrag = false;
   action('release');
@@ -444,8 +525,8 @@ function makeInput(): Input {
   const active = controlsActive() && !ui.menu && !ui.chatOpen && me && !me.deadUntil;
   return {
     seq: ++seq,
-    forward: active ? (keys.has('KeyW') ? 1 : 0) - (keys.has('KeyS') ? 1 : 0) : 0,
-    right: active ? (keys.has('KeyD') ? 1 : 0) - (keys.has('KeyA') ? 1 : 0) : 0,
+    forward: active ? (touchMode ? -moveTouchY : (keys.has('KeyW') ? 1 : 0) - (keys.has('KeyS') ? 1 : 0)) : 0,
+    right: active ? (touchMode ? moveTouchX : (keys.has('KeyD') ? 1 : 0) - (keys.has('KeyA') ? 1 : 0)) : 0,
     yaw,
     pitch,
     jump: !!active && keys.has('Space'),
@@ -620,8 +701,30 @@ document.addEventListener('pointerlockchange', () => {
   }
 });
 renderer.domElement.addEventListener('click', () => {
-  if (ui.playing && !ui.menu && !ui.chatOpen && !controlsActive()) lock();
+  if (!touchMode && ui.playing && !ui.menu && !ui.chatOpen && !controlsActive()) lock();
 });
+if (touchMode) {
+  renderer.domElement.addEventListener('pointerdown', (event) => {
+    if (!ui.playing || ui.menu || ui.chatOpen || event.pointerType !== 'touch') return;
+    lookPointerId = event.pointerId;
+    lookLastX = event.clientX;
+    lookLastY = event.clientY;
+  });
+  renderer.domElement.addEventListener('pointermove', (event) => {
+    if (event.pointerId !== lookPointerId || ui.menu || ui.chatOpen) return;
+    const dx = event.clientX - lookLastX;
+    const dy = event.clientY - lookLastY;
+    lookLastX = event.clientX;
+    lookLastY = event.clientY;
+    yaw = (yaw - dx * 0.006 * ui.settings.sensitivity) % (Math.PI * 2);
+    pitch = THREE.MathUtils.clamp(pitch - dy * 0.006 * ui.settings.sensitivity, -1.48, 1.48);
+  });
+  const stopLook = (event: PointerEvent) => {
+    if (event.pointerId === lookPointerId) lookPointerId = undefined;
+  };
+  renderer.domElement.addEventListener('pointerup', stopLook);
+  renderer.domElement.addEventListener('pointercancel', stopLook);
+}
 document.addEventListener('mousedown', (event) => {
   if (!controlsActive() || ui.menu || ui.chatOpen || !me) return;
   if (fallbackActive && event.button === 2) {
@@ -683,6 +786,7 @@ renderer.domElement.addEventListener('webglcontextlost', (event) => {
 
 function frame(now: number): void {
   requestAnimationFrame(frame);
+  mobileControls.classList.toggle('active', touchMode && ui.playing && !ui.menu && !ui.chatOpen);
   const dt = Math.min((now - lastFrame) / 1000, 0.1);
   lastFrame = now;
   elapsed += dt;
@@ -709,7 +813,7 @@ function frame(now: number): void {
     const moving =
       controlsActive() &&
       !ui.menu &&
-      (keys.has('KeyW') || keys.has('KeyS') || keys.has('KeyA') || keys.has('KeyD')) &&
+      (touchMode ? Math.hypot(moveTouchX, moveTouchY) > 0.12 : (keys.has('KeyW') || keys.has('KeyS') || keys.has('KeyA') || keys.has('KeyD'))) &&
       predicted.grounded;
     stepTimer += dt;
     if (moving && stepTimer > (keys.has('ShiftLeft') ? 0.29 : 0.43)) {
