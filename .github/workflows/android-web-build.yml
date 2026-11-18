@@ -1,0 +1,37 @@
+name: Android web payload
+
+on:
+  push:
+    branches:
+      - android-touch-controls
+  pull_request:
+    branches:
+      - main
+      - android-touch-controls
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-android-web:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Build Android web payload
+        run: npm run build:android
+      - name: Upload web payload
+        uses: actions/upload-artifact@v4
+        with:
+          name: openrp-android-web-payload
+          path: dist/
+          if-no-files-found: error
+          retention-days: 7
