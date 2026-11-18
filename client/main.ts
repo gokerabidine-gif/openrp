@@ -87,6 +87,7 @@ mobileControls.innerHTML = `
     <button type="button" class="mobile-button mobile-use" data-mobile-action="interact">USE</button>
     <button type="button" class="mobile-button mobile-fire" data-mobile-action="fire">FIRE</button>
     <button type="button" class="mobile-button" data-mobile-key="Space">JUMP</button>
+    <button type="button" class="mobile-button" data-mobile-key="ControlLeft">CROUCH</button>
     <button type="button" class="mobile-button" data-mobile-action="reload">RELOAD</button>
   </div>`;
 ui.root.append(mobileControls);
