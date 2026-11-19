@@ -116,8 +116,10 @@ test('connection churn has a per-IP minute limit even when sockets promptly clos
 });
 
 
-test('approved Android origin receives CORS headers for status and account preflight', async () => {
-  const origin = 'https://openrp.dev';
+test('local Worker origin receives CORS headers for status and account preflight', async () => {
+  // Wrangler/workerd normalizes the incoming Origin to its local worker URL.
+  // The allowlisted production origins are independently exercised by the WebSocket test above.
+  const origin = new URL(app.base).origin;
   const status = await fetch(app.base + '/api/status', { headers: { Origin: origin } });
   assert.equal(status.status, 200);
   assert.equal(status.headers.get('access-control-allow-origin'), origin);
