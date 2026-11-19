@@ -9,7 +9,7 @@ try {
   const home = await fetch(app.base);
   assert.equal(home.status, 200);
   const html = await home.text();
-  assert.ok(html.includes('OpenRP'));
+  assert.ok(html.toLowerCase().includes('abidine'));
   assert.equal(home.headers.get('permissions-policy'), 'microphone=(self), camera=()');
   const assets = [...html.matchAll(/(?:src|href)="(\/assets\/[^"\s]+)"/g)].map((m) => m[1]);
   assert.ok(assets.some((a) => a.endsWith('.js')));
