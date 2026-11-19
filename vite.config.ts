@@ -5,7 +5,7 @@ export default defineConfig({
     target: 'es2022',
     chunkSizeWarningLimit: 650,
     rollupOptions: {
-      input: { main: 'index.html', studio: 'studio.html', voiceLab: 'voice-lab.html' },
+      input: { main: 'index.html', studio: 'studio.html', voiceLab: 'voice-lab.html', mapPreview: 'map-preview.html' },
       output: { manualChunks: { three: ['three'] } },
     },
   },
