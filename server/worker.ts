@@ -40,6 +40,22 @@ function allowedOrigin(request: Request, origins: string): boolean {
     return false;
   }
 }
+
+/** Add browser CORS headers only for origins already accepted by the server. */
+function withCors(request: Request, origins: string, response: Response): Response {
+  const origin = request.headers.get('Origin');
+  if (!origin || !allowedOrigin(request, origins)) return response;
+  const headers = new Headers(response.headers);
+  headers.set('Access-Control-Allow-Origin', origin);
+  headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  headers.set('Access-Control-Allow-Headers', 'Content-Type');
+  headers.append('Vary', 'Origin');
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
 interface Session {
   id?: string;
   ip: string;
@@ -398,6 +414,11 @@ export class World extends DurableObject<WorldEnv> {
     const url = new URL(request.url),
       path = url.pathname,
       ip = clientIP(request);
+    if (path === '/api/account' && request.method === 'OPTIONS') {
+      if (!allowedOrigin(request, this.env.ALLOWED_ORIGINS))
+        return json({ error: 'Origin rejected' }, 403);
+      return withCors(request, this.env.ALLOWED_ORIGINS, new Response(null, { status: 204 }));
+    }
     if (
       this.restoring &&
       (path === '/ws' ||
@@ -408,16 +429,20 @@ export class World extends DurableObject<WorldEnv> {
       return json({ error: 'World restore in progress' }, 503);
     if (path === '/health') return new Response('ok');
     if (path === '/api/status')
-      return json({
-        name: cleanText(this.env.SERVER_NAME, 80),
-        map: 'Union District',
-        version: VERSION,
-        protocol: PROTOCOL,
-        players: this.game.players.size,
-        maxPlayers: null,
-        password: !!this.env.SERVER_PASSWORD,
-        accounts: true,
-      });
+      return withCors(
+        request,
+        this.env.ALLOWED_ORIGINS,
+        json({
+          name: cleanText(this.env.SERVER_NAME, 80),
+          map: 'Union District',
+          version: VERSION,
+          protocol: PROTOCOL,
+          players: this.game.players.size,
+          maxPlayers: null,
+          password: !!this.env.SERVER_PASSWORD,
+          accounts: true,
+        }),
+      );
     if (path === '/api/account') {
       if (!allowedOrigin(request, this.env.ALLOWED_ORIGINS) || url.search)
         return json({ error: 'Account requests must use this server’s page.' }, 403);
@@ -427,7 +452,7 @@ export class World extends DurableObject<WorldEnv> {
           this.accounts.handle(req, res, ip, () => !request.signal.aborted),
         );
         this.ctx.waitUntil(this.observations.flush());
-        return response;
+        return withCors(request, this.env.ALLOWED_ORIGINS, response);
       } finally {
         this.accountRequests--;
       }
