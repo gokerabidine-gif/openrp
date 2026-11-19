@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'dev.openrp.mobile',
-  appName: 'OpenRP',
+  appName: 'abidine',
   webDir: 'dist',
   bundledWebRuntime: false,
   android: {
