@@ -41,6 +41,18 @@ jobs:
         run: npm run build:android
       - name: Generate Android project
         run: npx cap add android
+      - name: Lock Android game to landscape
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          manifest = Path("android/app/src/main/AndroidManifest.xml")
+          source = manifest.read_text()
+          marker = "<activity "
+          if marker not in source:
+              raise SystemExit("Android activity declaration was not found")
+          source = source.replace(marker, '<activity android:screenOrientation="landscape" ', 1)
+          manifest.write_text(source)
+          PY
       - name: Sync web assets
         run: npx cap sync android
       - name: Assemble debug APK
