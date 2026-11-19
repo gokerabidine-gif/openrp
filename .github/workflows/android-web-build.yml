@@ -46,13 +46,18 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
+          import re
           manifest = Path("android/app/src/main/AndroidManifest.xml")
           source = manifest.read_text()
-          marker = "<activity "
-          if marker not in source:
+          updated, count = re.subn(
+              r"<activity(?=[\\s>])",
+              '<activity android:screenOrientation="landscape"',
+              source,
+              count=1,
+          )
+          if count != 1:
               raise SystemExit("Android activity declaration was not found")
-          source = source.replace(marker, '<activity android:screenOrientation="landscape" ', 1)
-          manifest.write_text(source)
+          manifest.write_text(updated)
           PY
       - name: Sync web assets
         run: npx cap sync android
