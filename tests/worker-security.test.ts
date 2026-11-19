@@ -114,3 +114,37 @@ test('connection churn has a per-IP minute limit even when sockets promptly clos
   assert.ok(admitted > 0);
   assert.equal(rejected, true);
 });
+
+
+test('approved Android origin receives CORS headers for status and account preflight', async () => {
+  const origin = 'https://openrp.dev';
+  const status = await fetch(app.base + '/api/status', { headers: { Origin: origin } });
+  assert.equal(status.status, 200);
+  assert.equal(status.headers.get('access-control-allow-origin'), origin);
+  assert.match(status.headers.get('vary') ?? '', /Origin/i);
+
+  const preflight = await fetch(app.base + '/api/account', {
+    method: 'OPTIONS',
+    headers: {
+      Origin: origin,
+      'Access-Control-Request-Method': 'POST',
+      'Access-Control-Request-Headers': 'content-type',
+    },
+  });
+  assert.equal(preflight.status, 204);
+  assert.equal(preflight.headers.get('access-control-allow-origin'), origin);
+  assert.match(preflight.headers.get('access-control-allow-methods') ?? '', /POST/);
+  assert.match(preflight.headers.get('access-control-allow-headers') ?? '', /Content-Type/i);
+});
+
+test('unapproved origin cannot use account preflight and receives no CORS permission', async () => {
+  const response = await fetch(app.base + '/api/account', {
+    method: 'OPTIONS',
+    headers: {
+      Origin: 'https://attacker.invalid',
+      'Access-Control-Request-Method': 'POST',
+    },
+  });
+  assert.equal(response.status, 403);
+  assert.equal(response.headers.get('access-control-allow-origin'), null);
+});
