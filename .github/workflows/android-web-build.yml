@@ -5,10 +5,12 @@ on:
     branches:
       - main
       - android-touch-controls
+      - abidine-vps-migration
   pull_request:
     branches:
       - main
       - android-touch-controls
+      - abidine-vps-migration
   workflow_dispatch:
 
 permissions:
@@ -40,6 +42,8 @@ jobs:
         run: npm install --no-save @capacitor/cli@^7 @capacitor/core@^7 @capacitor/android@^7
       - name: Build Android web assets
         run: npm run build:android
+      - name: Make offline map the app launch screen
+        run: cp dist/map-preview.html dist/index.html
       - name: Generate Android project
         run: npx cap add android
       - name: Lock Android game to landscape
@@ -67,7 +71,7 @@ jobs:
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: openrp-android-debug-apk
+          name: abidine-offline-map-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
