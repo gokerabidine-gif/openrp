@@ -1,4 +1,5 @@
 import workletUrl from './voice-worklet.ts?worker&url';
+import { serverWebSocketUrl } from './server-url.ts';
 import {
   decodeVoiceFrame,
   encodeVoiceFrame,
@@ -150,7 +151,7 @@ export class ProximityVoice {
   private openSocket(): void {
     if (!this.ticket) return;
     const socket = (this.socket = new WebSocket(
-      `${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}/voice`,
+      serverWebSocketUrl('/voice'),
     ));
     socket.binaryType = 'arraybuffer';
     socket.onopen = () => socket.send(JSON.stringify({ type: 'join', ticket: this.ticket }));

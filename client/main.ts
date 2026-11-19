@@ -7,6 +7,7 @@ import '@fontsource/barlow-condensed/500.css';
 import '@fontsource/barlow-condensed/600.css';
 import '@fontsource/barlow-condensed/800.css';
 import './style.css';
+import { serverHttpUrl, serverWebSocketUrl } from './server-url.ts';
 import { City } from './world.ts';
 import {
   disposeObject,
@@ -72,7 +73,88 @@ const viewCamera = new THREE.PerspectiveCamera(65, innerWidth / innerHeight, 0.0
 const models = new Map<WeaponId, THREE.Group>();
 const entityVisuals = new Map<string, THREE.Group>();
 const avatars = new Map<string, Avatar>();
+let localAvatar: Avatar | undefined;
 const keys = new Set<string>();
+const touchMode = navigator.maxTouchPoints > 0 || matchMedia('(pointer: coarse)').matches;
+let moveTouchX = 0, moveTouchY = 0, lookPointerId: number | undefined;
+let lookLastX = 0, lookLastY = 0;
+const mobileControls = document.createElement('div');
+mobileControls.id = 'mobile-controls';
+mobileControls.innerHTML = `
+  <div class="mobile-left">
+    <div id="mobile-stick" class="mobile-stick" aria-label="Movement joystick"><i></i></div>
+    <button type="button" class="mobile-button mobile-sprint" data-mobile-key="ShiftLeft">RUN</button>
+  </div>
+  <div class="mobile-right">
+    <button type="button" class="mobile-button mobile-use" data-mobile-action="interact">USE</button>
+    <button type="button" class="mobile-button mobile-fire" data-mobile-action="fire">FIRE</button>
+    <button type="button" class="mobile-button" data-mobile-key="Space">JUMP</button>
+    <button type="button" class="mobile-button" data-mobile-key="ControlLeft">CROUCH</button>
+    <button type="button" class="mobile-button" data-mobile-action="reload">RELOAD</button>
+  </div>`;
+ui.root.append(mobileControls);
+const mobileStick = mobileControls.querySelector<HTMLElement>('#mobile-stick')!;
+function updateMobileStick(event: PointerEvent): void {
+  const rect = mobileStick.getBoundingClientRect();
+  const radius = Math.min(rect.width, rect.height) * 0.34;
+  const dx = event.clientX - (rect.left + rect.width / 2);
+  const dy = event.clientY - (rect.top + rect.height / 2);
+  const length = Math.hypot(dx, dy);
+  const scale = length > radius ? radius / length : 1;
+  moveTouchX = Math.max(-1, Math.min(1, (dx * scale) / radius));
+  moveTouchY = Math.max(-1, Math.min(1, (dy * scale) / radius));
+  mobileStick.style.setProperty('--stick-x', `${dx * scale}px`);
+  mobileStick.style.setProperty('--stick-y', `${dy * scale}px`);
+}
+mobileStick.addEventListener('pointerdown', (event) => {
+  event.preventDefault();
+  mobileStick.setPointerCapture(event.pointerId);
+  updateMobileStick(event);
+});
+mobileStick.addEventListener('pointermove', (event) => {
+  if (mobileStick.hasPointerCapture(event.pointerId)) updateMobileStick(event);
+});
+const resetMobileStick = (event: PointerEvent) => {
+  if (mobileStick.hasPointerCapture(event.pointerId)) mobileStick.releasePointerCapture(event.pointerId);
+  moveTouchX = moveTouchY = 0;
+  mobileStick.style.setProperty('--stick-x', '0px');
+  mobileStick.style.setProperty('--stick-y', '0px');
+};
+mobileStick.addEventListener('pointerup', resetMobileStick);
+mobileStick.addEventListener('pointercancel', resetMobileStick);
+mobileControls.querySelectorAll<HTMLButtonElement>('[data-mobile-key], [data-mobile-action]').forEach((button) => {
+  const press = (event: PointerEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    button.setPointerCapture(event.pointerId);
+    const key = button.dataset.mobileKey;
+    const command = button.dataset.mobileAction;
+    if (key) keys.add(key);
+    if (command === 'fire' && me && !ui.menu && !ui.chatOpen) {
+      mouseDown = true;
+      nextFire = performance.now() + WEAPONS[me.weapon].delay;
+      action('primary');
+    } else if (command === 'interact' && me && !ui.menu && !ui.chatOpen) {
+      const target = aim();
+      if (target) action('interact', target.id);
+    } else if (command === 'reload' && me && !ui.menu && !ui.chatOpen) action(me.holding ? 'rotate' : 'reload');
+    button.classList.add('pressed');
+  };
+  const release = (event: PointerEvent) => {
+    if (button.hasPointerCapture(event.pointerId)) button.releasePointerCapture(event.pointerId);
+    const key = button.dataset.mobileKey;
+    if (key) keys.delete(key);
+    if (button.dataset.mobileAction === 'fire') {
+      mouseDown = false;
+      if (me?.weapon === 'physgun') action('release');
+    }
+    button.classList.remove('pressed');
+  };
+  button.addEventListener('pointerdown', press);
+  button.addEventListener('pointerup', release);
+  button.addEventListener('pointercancel', release);
+});
+
 let socket: WebSocket | undefined,
   myId = '',
   state: Snapshot | undefined,
@@ -111,7 +193,7 @@ beam.visible = false;
 scene.add(beam);
 const shotLines: { object: THREE.Line; until: number }[] = [];
 const locked = () => document.pointerLockElement === renderer.domElement;
-const controlsActive = () => locked() || fallbackActive;
+const controlsActive = () => locked() || fallbackActive || (touchMode && ui.playing);
 const serverNow = () => Date.now() + clockOffset;
 function send(message: ClientMessage): void {
   if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify(message));
@@ -120,7 +202,7 @@ function action(name: string, target?: string, value?: string | number | boolean
   send({ type: 'action', action: name, target, value });
 }
 function lock(): void {
-  if (!ui.playing || ui.menu || ui.chatOpen) return;
+  if (touchMode || !ui.playing || ui.menu || ui.chatOpen) return;
   const fallback = () => {
     if (!ui.menu && !ui.chatOpen) {
       fallbackActive = true;
@@ -138,6 +220,8 @@ function lock(): void {
 function releaseControls(): void {
   voice.setTalking(false);
   keys.clear();
+  moveTouchX = moveTouchY = 0;
+  lookPointerId = undefined;
   mouseDown = false;
   fallbackActive = fallbackDrag = false;
   action('release');
@@ -164,7 +248,7 @@ ui.onSettings();
 
 async function refreshStatus(): Promise<void> {
   try {
-    const response = await fetch('/api/status');
+    const response = await fetch(serverHttpUrl('/api/status'));
     if (!response.ok) throw new Error();
     const status = await response.json();
     ui.serverName = status.name;
@@ -189,7 +273,7 @@ ui.onAccount = async (action, username, password) => {
   try {
     const guestToken =
       action === 'register' ? (localStorage.getItem('openrp-token') ?? undefined) : undefined;
-    const response = await fetch('/api/account', {
+    const response = await fetch(serverHttpUrl('/api/account'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action, username, password, token: guestToken }),
@@ -212,7 +296,7 @@ ui.onSignOut = async () => {
   ui.setAccountBusy(true);
   try {
     if (ui.username) {
-      const response = await fetch('/api/account', {
+      const response = await fetch(serverHttpUrl('/api/account'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'logout', token: localStorage.getItem('openrp-account-token') }),
@@ -248,7 +332,7 @@ ui.onConnect = (name, password, account = false) => {
   mouseDown = false;
   keys.clear();
   const ws = (socket = new WebSocket(
-    `${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}/ws`,
+    serverWebSocketUrl('/ws'),
   ));
   let rejection = '';
   ws.addEventListener('open', () =>
@@ -384,6 +468,13 @@ function receiveState(snapshot: Snapshot): void {
   }
   state = snapshot;
   me = p;
+  if (touchMode) {
+    if (!localAvatar || localAvatar.job !== p.job) {
+      if (localAvatar) disposeObject(localAvatar.root);
+      localAvatar = makeAvatar(p);
+      scene.add(localAvatar.root);
+    }
+  }
   voice.updateWorld(p, snapshot.players);
   clockOffset = snapshot.time - Date.now() + ping / 2;
   pending = pending.filter((i) => i.seq > p.seq);
@@ -444,8 +535,8 @@ function makeInput(): Input {
   const active = controlsActive() && !ui.menu && !ui.chatOpen && me && !me.deadUntil;
   return {
     seq: ++seq,
-    forward: active ? (keys.has('KeyW') ? 1 : 0) - (keys.has('KeyS') ? 1 : 0) : 0,
-    right: active ? (keys.has('KeyD') ? 1 : 0) - (keys.has('KeyA') ? 1 : 0) : 0,
+    forward: active ? (touchMode ? -moveTouchY : (keys.has('KeyW') ? 1 : 0) - (keys.has('KeyS') ? 1 : 0)) : 0,
+    right: active ? (touchMode ? moveTouchX : (keys.has('KeyD') ? 1 : 0) - (keys.has('KeyA') ? 1 : 0)) : 0,
     yaw,
     pitch,
     jump: !!active && keys.has('Space'),
@@ -455,7 +546,9 @@ function makeInput(): Input {
 }
 function aim(): AimTarget | undefined {
   if (!state || !me || me.deadUntil) return;
-  const origin = camera.position,
+  const origin = touchMode
+      ? new THREE.Vector3(predicted.x, predicted.y + (me.crouch ? 1.02 : EYE_HEIGHT), predicted.z)
+      : camera.position,
     dir = direction(yaw, pitch),
     maxRange = ['physgun', 'toolgun'].includes(me.weapon) ? 12 : 3.4;
   let nearest = maxRange,
@@ -620,8 +713,35 @@ document.addEventListener('pointerlockchange', () => {
   }
 });
 renderer.domElement.addEventListener('click', () => {
-  if (ui.playing && !ui.menu && !ui.chatOpen && !controlsActive()) lock();
+  if (!touchMode && ui.playing && !ui.menu && !ui.chatOpen && !controlsActive()) lock();
 });
+if (touchMode) {
+  renderer.domElement.addEventListener('pointerdown', (event) => {
+    if (!ui.playing || ui.menu || ui.chatOpen || event.pointerType !== 'touch') return;
+    lookPointerId = event.pointerId;
+    renderer.domElement.setPointerCapture(event.pointerId);
+    lookLastX = event.clientX;
+    lookLastY = event.clientY;
+  });
+  renderer.domElement.addEventListener('pointermove', (event) => {
+    if (event.pointerId !== lookPointerId || ui.menu || ui.chatOpen) return;
+    const dx = event.clientX - lookLastX;
+    const dy = event.clientY - lookLastY;
+    lookLastX = event.clientX;
+    lookLastY = event.clientY;
+    yaw = (yaw - dx * 0.006 * ui.settings.sensitivity) % (Math.PI * 2);
+    pitch = THREE.MathUtils.clamp(pitch - dy * 0.006 * ui.settings.sensitivity, -1.48, 1.48);
+  });
+  const stopLook = (event: PointerEvent) => {
+    if (event.pointerId === lookPointerId) {
+      if (renderer.domElement.hasPointerCapture(event.pointerId))
+        renderer.domElement.releasePointerCapture(event.pointerId);
+      lookPointerId = undefined;
+    }
+  };
+  renderer.domElement.addEventListener('pointerup', stopLook);
+  renderer.domElement.addEventListener('pointercancel', stopLook);
+}
 document.addEventListener('mousedown', (event) => {
   if (!controlsActive() || ui.menu || ui.chatOpen || !me) return;
   if (fallbackActive && event.button === 2) {
@@ -683,6 +803,7 @@ renderer.domElement.addEventListener('webglcontextlost', (event) => {
 
 function frame(now: number): void {
   requestAnimationFrame(frame);
+  mobileControls.classList.toggle('active', touchMode && ui.playing && !ui.menu && !ui.chatOpen);
   const dt = Math.min((now - lastFrame) / 1000, 0.1);
   lastFrame = now;
   elapsed += dt;
@@ -709,7 +830,7 @@ function frame(now: number): void {
     const moving =
       controlsActive() &&
       !ui.menu &&
-      (keys.has('KeyW') || keys.has('KeyS') || keys.has('KeyA') || keys.has('KeyD')) &&
+      (touchMode ? Math.hypot(moveTouchX, moveTouchY) > 0.12 : (keys.has('KeyW') || keys.has('KeyS') || keys.has('KeyA') || keys.has('KeyD'))) &&
       predicted.grounded;
     stepTimer += dt;
     if (moving && stepTimer > (keys.has('ShiftLeft') ? 0.29 : 0.43)) {
@@ -723,8 +844,25 @@ function frame(now: number): void {
       predicted.z,
     );
     cameraPos.lerp(targetCamera, 1 - Math.exp(-25 * dt));
-    camera.position.copy(cameraPos);
-    camera.rotation.set(pitch, yaw, 0, 'YXZ');
+    if (touchMode) {
+      const distance = 4.1;
+      const shoulder = new THREE.Vector3(
+        predicted.x + Math.sin(yaw) * distance,
+        predicted.y + 2.35 + Math.max(0, pitch) * 0.35,
+        predicted.z + Math.cos(yaw) * distance,
+      );
+      camera.position.lerp(shoulder, 1 - Math.exp(-12 * dt));
+      const aimDirection = direction(yaw, pitch);
+      const focus = new THREE.Vector3(
+        predicted.x + aimDirection.x * 7,
+        predicted.y + (me.crouch ? 1.05 : 1.35) + aimDirection.y * 7,
+        predicted.z + aimDirection.z * 7,
+      );
+      camera.lookAt(focus);
+    } else {
+      camera.position.copy(cameraPos);
+      camera.rotation.set(pitch, yaw, 0, 'YXZ');
+    }
     for (const e of state.entities) {
       const visual = entityVisuals.get(e.id);
       if (visual) {
@@ -736,6 +874,10 @@ function frame(now: number): void {
       const a = avatars.get(other.id);
       if (a) updateAvatar(a, other, dt, cameraPos, serverNow(), colliders);
     }
+    if (touchMode && localAvatar) {
+      updateAvatar(localAvatar, { ...me, x: predicted.x, y: predicted.y, z: predicted.z }, dt, camera.position, serverNow(), colliders);
+      localAvatar.label.visible = false;
+    }
     if (hudTimer > 0.1) {
       hudTimer = 0;
       ui.update(
@@ -745,7 +887,7 @@ function frame(now: number): void {
       );
       ui.target(aim());
       voice.updateListener(
-        cameraPos,
+        touchMode ? camera.position : cameraPos,
         direction(yaw, pitch),
         new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion),
       );

@@ -1,0 +1,20 @@
+{
+  "id": "/",
+  "name": "OpenRP — City Roleplay",
+  "short_name": "OpenRP",
+  "description": "A multiplayer city roleplay sandbox.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#151a1b",
+  "theme_color": "#151a1b",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
