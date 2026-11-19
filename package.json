@@ -3,7 +3,7 @@
   "version": "0.6.5",
   "private": true,
   "type": "module",
-  "description": "An open-source, multiplayer DarkRP-inspired city sandbox built with Three.js.",
+  "description": "abidine, an open-source multiplayer city roleplay game built with Three.js.",
   "license": "MIT",
   "engines": {
     "node": ">=22.12.0"
