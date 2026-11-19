@@ -73,6 +73,7 @@ const viewCamera = new THREE.PerspectiveCamera(65, innerWidth / innerHeight, 0.0
 const models = new Map<WeaponId, THREE.Group>();
 const entityVisuals = new Map<string, THREE.Group>();
 const avatars = new Map<string, Avatar>();
+let localAvatar: Avatar | undefined;
 const keys = new Set<string>();
 const touchMode = navigator.maxTouchPoints > 0 || matchMedia('(pointer: coarse)').matches;
 let moveTouchX = 0, moveTouchY = 0, lookPointerId: number | undefined;
@@ -467,6 +468,13 @@ function receiveState(snapshot: Snapshot): void {
   }
   state = snapshot;
   me = p;
+  if (touchMode) {
+    if (!localAvatar || localAvatar.job !== p.job) {
+      if (localAvatar) disposeObject(localAvatar.root);
+      localAvatar = makeAvatar(p);
+      scene.add(localAvatar.root);
+    }
+  }
   voice.updateWorld(p, snapshot.players);
   clockOffset = snapshot.time - Date.now() + ping / 2;
   pending = pending.filter((i) => i.seq > p.seq);
@@ -538,7 +546,9 @@ function makeInput(): Input {
 }
 function aim(): AimTarget | undefined {
   if (!state || !me || me.deadUntil) return;
-  const origin = camera.position,
+  const origin = touchMode
+      ? new THREE.Vector3(predicted.x, predicted.y + (me.crouch ? 1.02 : EYE_HEIGHT), predicted.z)
+      : camera.position,
     dir = direction(yaw, pitch),
     maxRange = ['physgun', 'toolgun'].includes(me.weapon) ? 12 : 3.4;
   let nearest = maxRange,
@@ -834,8 +844,24 @@ function frame(now: number): void {
       predicted.z,
     );
     cameraPos.lerp(targetCamera, 1 - Math.exp(-25 * dt));
-    camera.position.copy(cameraPos);
-    camera.rotation.set(pitch, yaw, 0, 'YXZ');
+    if (touchMode) {
+      const distance = 4.1;
+      const shoulder = new THREE.Vector3(
+        predicted.x + Math.sin(yaw) * distance,
+        predicted.y + 2.35 + Math.max(0, pitch) * 0.35,
+        predicted.z + Math.cos(yaw) * distance,
+      );
+      camera.position.lerp(shoulder, 1 - Math.exp(-12 * dt));
+      const focus = new THREE.Vector3(
+        predicted.x,
+        predicted.y + (me.crouch ? 1.05 : 1.35),
+        predicted.z,
+      ).add(direction(yaw, pitch).multiplyScalar(7));
+      camera.lookAt(focus);
+    } else {
+      camera.position.copy(cameraPos);
+      camera.rotation.set(pitch, yaw, 0, 'YXZ');
+    }
     for (const e of state.entities) {
       const visual = entityVisuals.get(e.id);
       if (visual) {
@@ -847,6 +873,10 @@ function frame(now: number): void {
       const a = avatars.get(other.id);
       if (a) updateAvatar(a, other, dt, cameraPos, serverNow(), colliders);
     }
+    if (touchMode && localAvatar) {
+      updateAvatar(localAvatar, me, dt, camera.position, serverNow(), colliders);
+      localAvatar.label.visible = false;
+    }
     if (hudTimer > 0.1) {
       hudTimer = 0;
       ui.update(
@@ -856,7 +886,7 @@ function frame(now: number): void {
       );
       ui.target(aim());
       voice.updateListener(
-        cameraPos,
+        touchMode ? camera.position : cameraPos,
         direction(yaw, pitch),
         new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion),
       );
