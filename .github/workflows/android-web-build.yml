@@ -3,6 +3,7 @@ name: Android APK
 on:
   push:
     branches:
+      - main
       - android-touch-controls
   pull_request:
     branches:
