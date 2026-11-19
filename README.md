@@ -1,12 +1,12 @@
-# OpenRP
+# abidine
 
 **An open-source multiplayer city sandbox inspired by Garry’s Mod DarkRP, built with Three.js.**
 
 Choose a job, buy a storefront, sell weapons or meals, hide money printers, build with physics props, become mayor, or patrol the city as Civil Protection. Everyone plays in the same server-owned world.
 
-OpenRP is a playable **0.6 alpha**, not a complete Source engine port. All map geometry, characters, equipment, textures, and game sound effects are original and generated locally. No Garry’s Mod installation, extracted Valve assets, external asset CDN, external art APIs are required. Hosting on Cloudflare requires an account and is subject to its usage limits and billing.
+abidine is a playable **0.6 alpha**, not a complete Source engine port. All map geometry, characters, equipment, textures, and game sound effects are original and generated locally. No Garry’s Mod installation, extracted Valve assets, external asset CDN, external art APIs are required. Hosting on Cloudflare requires an account and is subject to its usage limits and billing.
 
-![OpenRP's multiplayer city, with buildings, streets, and a public square](public/social-card.png)
+![abidine's multiplayer city, with buildings, streets, and a public square](public/social-card.png)
 
 ## Run it
 
@@ -15,7 +15,7 @@ Play at **https://openrp.dev**. Choose an account or Guest, then return to the s
 For local development, install **Node.js 22.12 or newer** (24 recommended):
 
 ```sh
-git clone https://github.com/DevanMetz/openrp.git
+git clone https://github.com/gokerabidine-gif/openrp.git
 cd openrp
 npm ci
 npm run dev
@@ -29,7 +29,7 @@ To test two identities yourself, use two different browsers or a private window.
 
 ## Mobile touch controls
 
-The browser client detects touch-first devices and displays an on-screen movement stick, camera drag, and action buttons for sprinting, jumping, crouching, interacting, firing and reloading. The web app manifest requests a fullscreen landscape presentation when installed. Multiplayer still connects to the same OpenRP server; this branch does not bundle a standalone server or a native Android APK.
+The browser client detects touch-first devices and displays an on-screen movement stick, camera drag, and action buttons for sprinting, jumping, crouching, interacting, firing and reloading. The web app manifest requests a fullscreen landscape presentation when installed. Multiplayer still connects to the same abidine server; this branch does not bundle a standalone server or a native Android APK.
 
 ## What works
 
@@ -90,7 +90,7 @@ New players start with $1,500 to make the initial sandbox easy to explore. Salar
 | Hold V                           | Proximity voice after enabling the microphone in Settings         |
 | Tab / F1 / Escape                | Scoreboard / field guide / pause                                  |
 
-Some embedded browsers disallow Pointer Lock. OpenRP then uses **hold right mouse and drag to look**, with **Alt + left click** for alternate use. A normal desktop Chrome, Edge or Firefox window is recommended for captured first-person controls. Menus do not pause a multiplayer server.
+Some embedded browsers disallow Pointer Lock. abidine then uses **hold right mouse and drag to look**, with **Alt + left click** for alternate use. A normal desktop Chrome, Edge or Firefox window is recommended for captured first-person controls. Menus do not pause a multiplayer server.
 
 Select a resident's name in **Tab**, or look at them and press **C**, to give cash or use government actions. Transfers require a living recipient within 3.5 metres and a clear view, and accept whole dollars up to $50,000. A full recipient wallet rejects the transfer without deducting cash. Government menus show wanted status, warrants and gun licenses, with actions limited to your current job. Names and permissions update while the menu is open; typed amounts and reasons survive name or status updates. Menus use the selected resident's identity, so a different person reusing their name must be selected again.
 
@@ -170,7 +170,7 @@ To add jobs or entities, start in `shared/catalog.ts`. To extend the city, edit 
 
 ## Credits and license
 
-OpenRP code and original procedural assets: **MIT**, copyright Devan Metz. See [LICENSE](LICENSE).
+abidine code and original procedural assets: **MIT**, copyright Devan Metz. See [LICENSE](LICENSE).
 
 - [DarkRP](https://github.com/FPtje/DarkRP) by FPtje and contributors is the gameplay reference. No DarkRP Lua source was copied into this project.
 - [Three.js](https://threejs.org/) — MIT.
@@ -178,7 +178,7 @@ OpenRP code and original procedural assets: **MIT**, copyright Devan Metz. See [
 - [ws](https://github.com/websockets/ws), [Vite](https://vite.dev/), [tsx](https://tsx.is/) — MIT.
 - Barlow and Barlow Condensed by Jeremy Tribby, distributed locally through Fontsource — SIL Open Font License 1.1. Their licenses are included in the dependency packages.
 
-Garry’s Mod, DarkRP, and Valve names identify the inspiration. OpenRP is not affiliated with their creators.
+Garry’s Mod, DarkRP, and Valve names identify the inspiration. abidine is not affiliated with their creators.
 
 ### 0.6.5
 
