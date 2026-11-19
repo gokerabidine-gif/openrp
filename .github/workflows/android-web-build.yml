@@ -50,7 +50,7 @@ jobs:
           manifest = Path("android/app/src/main/AndroidManifest.xml")
           source = manifest.read_text()
           updated, count = re.subn(
-              r"<activity(?=[\s>])",
+              r"<activity",
               '<activity android:screenOrientation="landscape"',
               source,
               count=1,
