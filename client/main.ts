@@ -852,11 +852,12 @@ function frame(now: number): void {
         predicted.z + Math.cos(yaw) * distance,
       );
       camera.position.lerp(shoulder, 1 - Math.exp(-12 * dt));
+      const aimDirection = direction(yaw, pitch);
       const focus = new THREE.Vector3(
-        predicted.x,
-        predicted.y + (me.crouch ? 1.05 : 1.35),
-        predicted.z,
-      ).add(direction(yaw, pitch).multiplyScalar(7));
+        predicted.x + aimDirection.x * 7,
+        predicted.y + (me.crouch ? 1.05 : 1.35) + aimDirection.y * 7,
+        predicted.z + aimDirection.z * 7,
+      );
       camera.lookAt(focus);
     } else {
       camera.position.copy(cameraPos);
@@ -874,7 +875,7 @@ function frame(now: number): void {
       if (a) updateAvatar(a, other, dt, cameraPos, serverNow(), colliders);
     }
     if (touchMode && localAvatar) {
-      updateAvatar(localAvatar, me, dt, camera.position, serverNow(), colliders);
+      updateAvatar(localAvatar, { ...me, x: predicted.x, y: predicted.y, z: predicted.z }, dt, camera.position, serverNow(), colliders);
       localAvatar.label.visible = false;
     }
     if (hudTimer > 0.1) {
