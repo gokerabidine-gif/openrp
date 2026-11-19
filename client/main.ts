@@ -256,7 +256,7 @@ async function refreshStatus(): Promise<void> {
     if (!ui.playing && !ui.accountBusy && socket?.readyState !== WebSocket.CONNECTING)
       ui.status(`${status.players} residents online · Join the city`);
   } catch {
-    if (!ui.playing) ui.status('Server unavailable. Check that the OpenRP server is running.');
+    if (!ui.playing) ui.status('Server unavailable. Check that the abidine server is running.');
   }
 }
 void refreshStatus();
