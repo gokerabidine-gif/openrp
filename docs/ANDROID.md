@@ -1,6 +1,6 @@
 # Android client preparation
 
-OpenRP is a browser-first multiplayer game. The Android client is a packaged web client; the authoritative game world, accounts, HTTP API and WebSocket sessions remain on a reachable OpenRP server.
+abidine is a browser-first multiplayer game. The Android client is a packaged web client; the authoritative game world, accounts, HTTP API and WebSocket sessions remain on a reachable abidine server.
 
 ## Multiplayer server
 
